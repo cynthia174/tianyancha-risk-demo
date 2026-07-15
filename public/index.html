@@ -112,7 +112,7 @@
     .rule.severe:hover { border-color:#cf4135; box-shadow:0 16px 42px rgba(188,48,37,.2); }
     .rule.severe .rule-title b, .rule.severe .rule-summary, .rule.severe .score-cell b { color:#a92d25; }
     .rule.severe .rule-reason { color:#7d403b; }
-    .rule.severe::before { content:"严重关联风险"; position:absolute; right:18px; top:-10px; padding:4px 10px; border-radius:999px; background:#c73a30; color:#fff; font-size:11px; font-weight:800; letter-spacing:.04em; }
+    .rule.severe::before { content:attr(data-severe-label); position:absolute; right:18px; top:-10px; padding:4px 10px; border-radius:999px; background:#c73a30; color:#fff; font-size:11px; font-weight:800; letter-spacing:.04em; }
     .rule-title b { display:block; font-size:15px; }
     .weight { font-size:12px; color:var(--muted); margin-top:5px; }
     .rule-copy { min-width:0; }
@@ -227,7 +227,7 @@
       </div>
 
       <div class="section-head">
-        <div><h3>逐项评分依据</h3><p>鼠标移到“查看历史依据”可展开原始记录</p></div>
+        <div><h3>逐项评分依据</h3><p>按当前企业的红线、失分和权重动态排序；鼠标移到“查看历史依据”可展开原始记录</p></div>
         <div class="legend"><span><i style="background:var(--green)"></i>稳健</span><span><i style="background:var(--amber)"></i>关注</span><span><i style="background:var(--red)"></i>风险</span></div>
       </div>
       <div class="rules" id="rules"></div>
@@ -238,7 +238,7 @@
 
   <footer class="shell">
     <span>本评分仅用于商业合作初筛，不构成征信、法律或投资结论。</span>
-    <span>规则版本 v2.2 · 疑似关系红线 + 严重事件封顶 · 数据查询时间以结果为准</span>
+    <span>规则版本 v2.3 · 经营真实性优先 + 风险动态排序 · 数据查询时间以结果为准</span>
   </footer>
 
   <script>
@@ -286,7 +286,7 @@
         const evidence = item.evidence.length
           ? item.evidence.map((entry) => `<div class="evidence-item"><b>${escapeHtml(entry.label)}</b>${escapeHtml(entry.value)}</div>`).join('')
           : '<div class="empty-evidence">当前接口没有返回可展示的历史记录。</div>';
-        return `<article class="rule ${escapeHtml(item.status)} ${item.severe ? 'severe' : ''}">
+        return `<article class="rule ${escapeHtml(item.status)} ${item.severe ? 'severe' : ''}" data-severe-label="${escapeHtml(item.severeLabel || '严重风险')}">
           <div class="rule-title">
             <span class="rule-index">${String(index + 1).padStart(2, '0')}</span>
             <div><b>${escapeHtml(item.title)}</b><div class="weight">权重 ${item.weight}%</div></div>
