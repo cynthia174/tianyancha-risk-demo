@@ -1,0 +1,9 @@
+node_modules/
+.env
+.env.*
+!.env.example
+.tyc/
+tyc_rules*.xml
+npm-debug.log*
+.DS_Store
+

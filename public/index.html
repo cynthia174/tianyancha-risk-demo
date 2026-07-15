@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>企业合作风险透镜</title>
+  <style>
+    :root {
+      --ink: #17201f;
+      --muted: #65716e;
+      --paper: #f5f3ed;
+      --card: #fffdfa;
+      --line: #deddd5;
+      --green: #0b7c66;
+      --green-soft: #e4f3ed;
+      --amber: #b56a11;
+      --amber-soft: #fff0d7;
+      --red: #c24b3c;
+      --red-soft: #fbe8e3;
+      --navy: #173d42;
+      --shadow: 0 18px 55px rgba(36, 45, 43, .09);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 0%, rgba(11,124,102,.10), transparent 30%),
+        radial-gradient(circle at 90% 12%, rgba(211,161,72,.10), transparent 25%),
+        var(--paper);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+    }
+    button, input { font: inherit; }
+    .shell { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; padding: 26px 0 18px; }
+    .brand { display:flex; align-items:center; gap:12px; font-weight:760; letter-spacing:-.02em; }
+    .brand-mark { width:38px; height:38px; border-radius:12px; background:var(--navy); display:grid; place-items:center; color:white; box-shadow:0 8px 20px rgba(23,61,66,.22); }
+    .brand-mark svg { width:21px; }
+    .source-tag { color:var(--muted); font-size:13px; border:1px solid var(--line); padding:8px 12px; border-radius:999px; background:rgba(255,255,255,.5); }
+    .hero { padding: 48px 0 34px; display:grid; grid-template-columns: minmax(0,1fr) 360px; gap:55px; align-items:end; }
+    .eyebrow { color:var(--green); font-size:12px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
+    h1 { font-family: "Songti SC", "STSong", Georgia, serif; font-size:clamp(38px,5vw,66px); letter-spacing:-.045em; line-height:1.05; margin:14px 0 18px; max-width:760px; }
+    .hero p { color:var(--muted); margin:0; font-size:16px; line-height:1.8; max-width:690px; }
+    .search-wrap { position:relative; }
+    .search { background:rgba(255,253,250,.9); border:1px solid rgba(210,210,200,.95); border-radius:20px; padding:8px; display:flex; gap:8px; box-shadow:var(--shadow); }
+    .search input { width:100%; border:0; outline:none; background:transparent; padding:14px 12px; color:var(--ink); min-width:0; }
+    .search button { border:0; border-radius:14px; padding:0 20px; color:white; background:var(--navy); cursor:pointer; font-weight:700; white-space:nowrap; transition:.2s ease; }
+    .search button:hover { transform:translateY(-1px); background:#0f5554; }
+    .search button:disabled { opacity:.55; cursor:wait; transform:none; }
+    .suggestions { display:none; position:absolute; top:calc(100% + 9px); left:0; right:0; z-index:60; max-height:420px; overflow:auto; background:var(--card); border:1px solid var(--line); border-radius:18px; box-shadow:0 22px 60px rgba(31,43,40,.17); padding:7px; }
+    .suggestions.show { display:block; }
+    .suggestion { width:100%; border:0; border-radius:12px; background:transparent; color:var(--ink); text-align:left; padding:12px 13px; cursor:pointer; display:block; transition:.14s ease; }
+    .suggestion:hover, .suggestion.active { background:#edf4f0; }
+    .suggestion + .suggestion { margin-top:2px; }
+    .suggestion-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .suggestion-name { font-size:14px; font-weight:750; line-height:1.45; }
+    .suggestion-status { flex:0 0 auto; font-size:11px; color:var(--green); background:var(--green-soft); padding:3px 7px; border-radius:999px; }
+    .suggestion-status.closed { color:var(--red); background:var(--red-soft); }
+    .suggestion-meta { display:flex; flex-wrap:wrap; gap:5px 12px; color:var(--muted); font-size:11px; margin-top:5px; line-height:1.45; }
+    .suggestion-empty { color:var(--muted); font-size:13px; padding:16px; text-align:center; }
+    .error { display:none; margin-top:10px; color:var(--red); font-size:13px; }
+    .error.show { display:block; }
+    .loading { display:none; padding:70px 0; text-align:center; color:var(--muted); }
+    .loading.show { display:block; }
+    .spinner { width:34px; height:34px; margin:0 auto 14px; border:3px solid #d7ddd9; border-top-color:var(--green); border-radius:50%; animation:spin .8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .result { display:none; padding-bottom:70px; }
+    .result.show { display:block; animation:rise .45s ease both; }
+    @keyframes rise { from { opacity:0; transform:translateY(12px); } }
+    .summary { display:grid; grid-template-columns: 1.15fr .85fr; background:var(--navy); color:white; border-radius:28px; overflow:hidden; box-shadow:0 24px 70px rgba(23,61,66,.20); }
+    .company { padding:34px 38px; position:relative; cursor:pointer; }
+    .company::after { content:""; position:absolute; width:190px; height:190px; border:1px solid rgba(255,255,255,.10); border-radius:50%; right:-65px; bottom:-105px; }
+    .company-label { color:#9fc0bb; font-size:12px; font-weight:700; letter-spacing:.12em; }
+    .company h2 { margin:10px 0 8px; font-size:clamp(25px,3vw,38px); line-height:1.25; letter-spacing:-.025em; }
+    .company h2 a { color:inherit; text-decoration:none; border-bottom:1px solid transparent; }
+    .company h2 a:hover { border-color:#a6d3c7; }
+    .company-meta { color:#b8cdca; font-size:13px; display:flex; gap:16px; flex-wrap:wrap; }
+    .status-pill { color:#c6f3dd; background:rgba(31,166,125,.18); border:1px solid rgba(115,221,179,.25); padding:3px 8px; border-radius:999px; }
+    .verdict { margin-top:30px; max-width:630px; font-size:15px; line-height:1.75; color:#e9f2ef; }
+    .flags { display:flex; flex-wrap:wrap; gap:8px; margin-top:18px; }
+    .flag { font-size:12px; padding:7px 10px; border-radius:10px; background:rgba(236,150,112,.14); color:#ffd7c5; border:1px solid rgba(244,178,148,.2); }
+    .tyc-link { display:inline-flex; align-items:center; gap:7px; color:white; text-decoration:none; margin-top:24px; font-size:13px; font-weight:700; }
+    .tyc-link:hover { color:#bdeadd; }
+    .score-panel { display:flex; align-items:center; justify-content:center; gap:25px; padding:34px; background:rgba(255,255,255,.055); border-left:1px solid rgba(255,255,255,.09); }
+    .score-panel.low-score { background:#e5b84d; color:#3d2b0b; border-left-color:rgba(74,48,7,.14); }
+    .score-panel.low-score .score-ring { background:conic-gradient(#724810 calc(var(--score) * 1%), rgba(255,255,255,.36) 0); }
+    .score-panel.low-score .score-ring::before { background:#f3d274; }
+    .score-panel.low-score .score-unit, .score-panel.low-score .grade span { color:#725416; }
+    .score-ring { --score:0; width:154px; aspect-ratio:1; border-radius:50%; display:grid; place-items:center; background:conic-gradient(#73d3b3 calc(var(--score) * 1%), rgba(255,255,255,.12) 0); position:relative; }
+    .score-ring::before { content:""; position:absolute; inset:11px; background:#1b4649; border-radius:50%; }
+    .score-text { position:relative; text-align:center; }
+    .score-number { display:block; font:700 54px/1 Georgia, serif; letter-spacing:-.06em; }
+    .score-unit { display:block; color:#a8c8c2; font-size:12px; margin-top:5px; }
+    .grade { min-width:92px; }
+    .grade b { display:block; font:700 48px/1 Georgia, serif; }
+    .grade span { display:block; font-size:12px; color:#a8c8c2; margin-top:8px; }
+    .section-head { display:flex; justify-content:space-between; align-items:end; padding:42px 2px 18px; }
+    .section-head h3 { margin:0; font-size:23px; letter-spacing:-.02em; }
+    .section-head p { margin:5px 0 0; color:var(--muted); font-size:13px; }
+    .legend { display:flex; gap:14px; font-size:12px; color:var(--muted); }
+    .legend i { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; }
+    .rules { display:grid; gap:12px; }
+    .rule { background:var(--card); border:1px solid var(--line); border-radius:20px; padding:20px 22px; display:grid; grid-template-columns: minmax(190px, .8fr) minmax(240px, 1.35fr) 155px 86px; gap:20px; align-items:center; transition:.22s ease; position:relative; }
+    .rule:hover { transform:translateY(-2px); box-shadow:0 14px 38px rgba(42,48,45,.08); border-color:#c8cec8; }
+    .rule-title { display:flex; align-items:center; gap:13px; min-width:0; }
+    .rule-index { width:34px; height:34px; display:grid; place-items:center; border-radius:11px; font:700 13px Georgia,serif; background:#edf0ec; color:#4e5b57; flex:0 0 auto; }
+    .rule.good .rule-index { color:var(--green); background:var(--green-soft); }
+    .rule.watch .rule-index { color:var(--amber); background:var(--amber-soft); }
+    .rule.risk .rule-index { color:var(--red); background:var(--red-soft); }
+    .rule.severe { background:#fff0ee; border-color:#e87166; box-shadow:0 10px 30px rgba(188,48,37,.12); }
+    .rule.severe:hover { border-color:#cf4135; box-shadow:0 16px 42px rgba(188,48,37,.2); }
+    .rule.severe .rule-title b, .rule.severe .rule-summary, .rule.severe .score-cell b { color:#a92d25; }
+    .rule.severe .rule-reason { color:#7d403b; }
+    .rule.severe::before { content:"严重关联风险"; position:absolute; right:18px; top:-10px; padding:4px 10px; border-radius:999px; background:#c73a30; color:#fff; font-size:11px; font-weight:800; letter-spacing:.04em; }
+    .rule-title b { display:block; font-size:15px; }
+    .weight { font-size:12px; color:var(--muted); margin-top:5px; }
+    .rule-copy { min-width:0; }
+    .rule-summary { font-size:14px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .rule-reason { color:var(--muted); font-size:12px; line-height:1.55; margin-top:5px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .progress { height:7px; background:#ecece7; border-radius:999px; overflow:hidden; }
+    .progress span { display:block; height:100%; border-radius:inherit; transition:width .65s ease; }
+    .good .progress span { background:var(--green); }
+    .watch .progress span { background:var(--amber); }
+    .risk .progress span { background:var(--red); }
+    .score-cell { text-align:right; }
+    .score-cell b { font:700 22px Georgia,serif; }
+    .score-cell small { color:var(--muted); }
+    .evidence { position:relative; display:inline-block; margin-top:8px; }
+    .evidence-btn { appearance:none; border:0; padding:0; color:var(--green); background:none; font-size:12px; cursor:help; font-weight:700; border-bottom:1px dashed #77aa9e; }
+    .tooltip { position:absolute; left:0; bottom:calc(100% + 10px); width:min(410px, 75vw); background:#172827; color:white; border-radius:15px; padding:15px 16px; box-shadow:0 18px 50px rgba(17,35,33,.25); opacity:0; visibility:hidden; transform:translateY(6px); transition:.18s ease; z-index:20; pointer-events:none; }
+    .evidence:hover .tooltip, .evidence:focus-within .tooltip, .evidence.open .tooltip { opacity:1; visibility:visible; transform:none; pointer-events:auto; }
+    .tooltip::after { content:""; position:absolute; top:100%; left:23px; border:7px solid transparent; border-top-color:#172827; }
+    .tooltip h4 { margin:0 0 9px; font-size:13px; }
+    .evidence-list { max-height:250px; overflow:auto; display:grid; gap:8px; }
+    .evidence-item { border-top:1px solid rgba(255,255,255,.1); padding-top:8px; font-size:11px; line-height:1.5; }
+    .evidence-item:first-child { border-top:0; padding-top:0; }
+    .evidence-item b { color:#9fd8c8; margin-right:5px; }
+    .empty-evidence { color:#b7c6c2; font-size:12px; }
+    .note { margin-top:16px; border:1px solid var(--line); border-radius:16px; padding:15px 18px; color:var(--muted); font-size:12px; line-height:1.65; background:rgba(255,255,255,.42); }
+    .coverage { margin-top:16px; display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    .coverage-card { border:1px solid var(--line); background:var(--card); border-radius:16px; padding:15px 16px; }
+    .coverage-card b { display:block; font-size:13px; margin-bottom:8px; }
+    .coverage-card ul { margin:0; padding-left:17px; color:var(--muted); font-size:11px; line-height:1.65; }
+    .coverage-card.available b { color:var(--green); }
+    .coverage-card.derived b { color:var(--amber); }
+    .coverage-card.unavailable b { color:var(--red); }
+    footer { padding:25px 0 36px; color:#7f8986; font-size:11px; display:flex; justify-content:space-between; gap:20px; border-top:1px solid var(--line); }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns:1fr; gap:25px; padding-top:30px; }
+      .summary { grid-template-columns:1fr; }
+      .score-panel { border-left:0; border-top:1px solid rgba(255,255,255,.09); justify-content:flex-start; }
+      .rule { grid-template-columns:1fr 90px; gap:14px; }
+      .rule-copy { grid-column:1 / -1; order:3; }
+      .rule .progress { grid-column:1; }
+      .score-cell { grid-column:2; grid-row:1; }
+      .coverage { grid-template-columns:1fr; }
+    }
+    @media (max-width: 600px) {
+      .shell { width:min(100% - 24px, 1180px); }
+      .topbar { padding-top:16px; }
+      .source-tag { display:none; }
+      .hero { padding-top:24px; }
+      h1 { font-size:40px; }
+      .search { flex-direction:column; }
+      .search button { height:48px; }
+      .company { padding:28px 24px; }
+      .score-panel { padding:28px 24px; }
+      .score-ring { width:132px; }
+      .rule { padding:18px; }
+      .legend { display:none; }
+      footer { flex-direction:column; }
+    }
+  </style>
+</head>
+<body>
+  <header class="shell topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 17.5 9.5 12l3.2 3.2L20 7.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 7.8H20v4.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </span>
+      <span>企业合作风险透镜</span>
+    </div>
+    <span class="source-tag">数据来源 · 天眼查 API</span>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Business Due Diligence</div>
+        <h1>用证据，快速看清一家企业。</h1>
+        <p>输入企业全称，按成立年限、实缴资本、社保人数、经营地址、开庭公告和关联风险逐条评分。每一分都有来源，每一项都能追溯。</p>
+      </div>
+      <div>
+        <div class="search-wrap">
+          <form class="search" id="searchForm">
+            <input id="companyInput" value="宁德时代新能源科技股份有限公司" aria-label="企业名称" placeholder="输入企业简称或完整名称" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="companySuggestions" />
+            <button id="submitButton" type="submit">开始评估</button>
+          </form>
+          <div class="suggestions" id="companySuggestions" role="listbox" aria-label="企业候选列表"></div>
+        </div>
+        <div class="error" id="errorBox" role="alert"></div>
+      </div>
+    </section>
+
+    <section class="loading" id="loading" aria-live="polite">
+      <div class="spinner"></div>
+      <div>正在核验工商、年报与司法信息…</div>
+    </section>
+
+    <section class="result" id="result" aria-live="polite">
+      <div class="summary">
+        <div class="company" id="companyCard" role="link" tabindex="0" aria-label="在天眼查查看该企业">
+          <div class="company-label">风险评估主体</div>
+          <h2><a id="companyLink" target="_blank" rel="noreferrer"></a></h2>
+          <div class="company-meta" id="companyMeta"></div>
+          <div class="verdict" id="verdict"></div>
+          <div class="flags" id="flags"></div>
+          <a class="tyc-link" id="tycLink" target="_blank" rel="noreferrer">前往天眼查查看企业原始信息 <span>↗</span></a>
+        </div>
+        <div class="score-panel" id="scorePanel">
+          <div class="score-ring" id="scoreRing">
+            <div class="score-text"><span class="score-number" id="scoreNumber">0</span><span class="score-unit">综合得分 / 100</span></div>
+          </div>
+          <div class="grade"><b id="grade">–</b><span>企业信用等级</span></div>
+        </div>
+      </div>
+
+      <div class="section-head">
+        <div><h3>逐项评分依据</h3><p>鼠标移到“查看历史依据”可展开原始记录</p></div>
+        <div class="legend"><span><i style="background:var(--green)"></i>稳健</span><span><i style="background:var(--amber)"></i>关注</span><span><i style="background:var(--red)"></i>风险</span></div>
+      </div>
+      <div class="rules" id="rules"></div>
+      <div class="coverage" id="coverage"></div>
+      <div class="note" id="note"></div>
+    </section>
+  </main>
+
+  <footer class="shell">
+    <span>本评分仅用于商业合作初筛，不构成征信、法律或投资结论。</span>
+    <span>规则版本 v2.2 · 疑似关系红线 + 严重事件封顶 · 数据查询时间以结果为准</span>
+  </footer>
+
+  <script>
+    const form = document.getElementById('searchForm');
+    const input = document.getElementById('companyInput');
+    const button = document.getElementById('submitButton');
+    const result = document.getElementById('result');
+    const loading = document.getElementById('loading');
+    const errorBox = document.getElementById('errorBox');
+    const suggestionBox = document.getElementById('companySuggestions');
+    let suggestionItems = [];
+    let activeSuggestion = -1;
+    let searchTimer;
+    let searchController;
+
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;'
+    }[char]));
+
+    function render(data) {
+      const company = data.company;
+      const companyLink = document.getElementById('companyLink');
+      companyLink.textContent = company.name;
+      companyLink.href = company.tycUrl;
+      document.getElementById('tycLink').href = company.tycUrl;
+      document.getElementById('companyCard').dataset.href = company.tycUrl;
+      document.getElementById('companyMeta').innerHTML = [
+        `<span class="status-pill">${escapeHtml(company.status || '状态未披露')}</span>`,
+        company.creditCode ? `<span>${escapeHtml(company.creditCode)}</span>` : '',
+        company.industry ? `<span>${escapeHtml(company.industry)}</span>` : '',
+        company.legalPerson ? `<span>法定代表人：${escapeHtml(company.legalPerson)}</span>` : ''
+      ].filter(Boolean).join('');
+      document.getElementById('verdict').textContent = data.verdict;
+      document.getElementById('scoreRing').style.setProperty('--score', data.score);
+      document.getElementById('scorePanel').classList.toggle('low-score', data.score < 70);
+      document.getElementById('scoreNumber').textContent = data.score;
+      document.getElementById('grade').textContent = data.grade;
+
+      const flags = document.getElementById('flags');
+      flags.innerHTML = data.hardFlags.length
+        ? data.hardFlags.map((flag) => `<span class="flag">${escapeHtml(flag)}</span>`).join('')
+        : '<span class="flag" style="color:#c6f3dd;background:rgba(31,166,125,.14);border-color:rgba(115,221,179,.2)">未触发硬性预警</span>';
+
+      document.getElementById('rules').innerHTML = data.rules.map((item, index) => {
+        const evidence = item.evidence.length
+          ? item.evidence.map((entry) => `<div class="evidence-item"><b>${escapeHtml(entry.label)}</b>${escapeHtml(entry.value)}</div>`).join('')
+          : '<div class="empty-evidence">当前接口没有返回可展示的历史记录。</div>';
+        return `<article class="rule ${escapeHtml(item.status)} ${item.severe ? 'severe' : ''}">
+          <div class="rule-title">
+            <span class="rule-index">${String(index + 1).padStart(2, '0')}</span>
+            <div><b>${escapeHtml(item.title)}</b><div class="weight">权重 ${item.weight}%</div></div>
+          </div>
+          <div class="rule-copy">
+            <div class="rule-summary">${escapeHtml(item.summary)}</div>
+            <div class="rule-reason">${escapeHtml(item.reason)}</div>
+            <div class="evidence">
+              <button class="evidence-btn" type="button" aria-expanded="false">查看历史依据</button>
+              <div class="tooltip" role="tooltip"><h4>${escapeHtml(item.title)} · 详细依据</h4><div class="evidence-list">${evidence}</div></div>
+            </div>
+          </div>
+          <div class="progress" aria-label="得分进度"><span style="width:${Math.round(item.score / item.weight * 100)}%"></span></div>
+          <div class="score-cell"><b>${item.score}</b><small> / ${item.weight}</small></div>
+        </article>`;
+      }).join('');
+
+      const coverage = data.dataAvailability || { available:[], derived:[], unavailable:[] };
+      document.getElementById('coverage').innerHTML = [
+        ['available', '可直接查询', coverage.available],
+        ['derived', '可二次计算', coverage.derived],
+        ['unavailable', '需接自有数据', coverage.unavailable]
+      ].map(([type, title, items]) => `<div class="coverage-card ${type}"><b>${title}</b><ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul></div>`).join('');
+
+      document.getElementById('note').textContent = data.meta.note;
+      document.querySelectorAll('.evidence-btn').forEach((trigger) => {
+        trigger.addEventListener('click', () => {
+          const wrapper = trigger.closest('.evidence');
+          const open = wrapper.classList.toggle('open');
+          trigger.setAttribute('aria-expanded', String(open));
+        });
+      });
+    }
+
+    async function query(name) {
+      closeSuggestions();
+      result.classList.remove('show');
+      errorBox.classList.remove('show');
+      loading.classList.add('show');
+      button.disabled = true;
+      button.textContent = '评估中…';
+      try {
+        const response = await fetch(`/api/company-risk?name=${encodeURIComponent(name)}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || data.error || '查询失败');
+        render(data);
+        result.classList.add('show');
+        setTimeout(() => result.scrollIntoView({ behavior:'smooth', block:'start' }), 80);
+      } catch (error) {
+        errorBox.textContent = error.message;
+        errorBox.classList.add('show');
+      } finally {
+        loading.classList.remove('show');
+        button.disabled = false;
+        button.textContent = '开始评估';
+      }
+    }
+
+    function closeSuggestions() {
+      suggestionBox.classList.remove('show');
+      input.setAttribute('aria-expanded', 'false');
+      input.removeAttribute('aria-activedescendant');
+      activeSuggestion = -1;
+    }
+
+    function setActiveSuggestion(index) {
+      const options = suggestionBox.querySelectorAll('.suggestion');
+      if (!options.length) return;
+      activeSuggestion = (index + options.length) % options.length;
+      options.forEach((option, optionIndex) => option.classList.toggle('active', optionIndex === activeSuggestion));
+      const active = options[activeSuggestion];
+      input.setAttribute('aria-activedescendant', active.id);
+      active.scrollIntoView({ block:'nearest' });
+    }
+
+    function renderSuggestions(items) {
+      suggestionItems = items;
+      activeSuggestion = -1;
+      if (!items.length) {
+        suggestionBox.innerHTML = '<div class="suggestion-empty">没有找到匹配企业，请尝试更多关键词</div>';
+      } else {
+        suggestionBox.innerHTML = items.map((item, index) => {
+          const closed = /注销|吊销|撤销/.test(item.status);
+          return `<button class="suggestion" type="button" role="option" id="company-option-${index}" data-index="${index}">
+            <span class="suggestion-top"><span class="suggestion-name">${escapeHtml(item.name)}</span><span class="suggestion-status ${closed ? 'closed' : ''}">${escapeHtml(item.status)}</span></span>
+            <span class="suggestion-meta">
+              ${item.legalPerson ? `<span>法人：${escapeHtml(item.legalPerson)}</span>` : ''}
+              ${item.established ? `<span>成立：${escapeHtml(item.established)}</span>` : ''}
+              ${item.registeredCapital ? `<span>${escapeHtml(item.registeredCapital)}</span>` : ''}
+            </span>
+          </button>`;
+        }).join('');
+      }
+      suggestionBox.classList.add('show');
+      input.setAttribute('aria-expanded', 'true');
+    }
+
+    async function fuzzySearch(value) {
+      if (searchController) searchController.abort();
+      searchController = new AbortController();
+      try {
+        const response = await fetch(`/api/company-search?q=${encodeURIComponent(value)}`, { signal:searchController.signal });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || '候选搜索失败');
+        if (input.value.trim() === value) renderSuggestions(data.items || []);
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          suggestionBox.innerHTML = `<div class="suggestion-empty">${escapeHtml(error.message)}</div>`;
+          suggestionBox.classList.add('show');
+        }
+      }
+    }
+
+    function selectSuggestion(index) {
+      const company = suggestionItems[index];
+      if (!company) return;
+      input.value = company.name;
+      closeSuggestions();
+      query(company.name);
+    }
+
+    input.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      const value = input.value.trim();
+      if (value.length < 2) {
+        closeSuggestions();
+        return;
+      }
+      searchTimer = setTimeout(() => fuzzySearch(value), 260);
+    });
+
+    input.addEventListener('keydown', (event) => {
+      if (!suggestionBox.classList.contains('show') || !suggestionItems.length) return;
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setActiveSuggestion(activeSuggestion + 1);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        setActiveSuggestion(activeSuggestion - 1);
+      } else if (event.key === 'Enter' && activeSuggestion >= 0) {
+        event.preventDefault();
+        selectSuggestion(activeSuggestion);
+      } else if (event.key === 'Escape') {
+        closeSuggestions();
+      }
+    });
+
+    suggestionBox.addEventListener('click', (event) => {
+      const option = event.target.closest('.suggestion');
+      if (!option) return;
+      selectSuggestion(Number(option.dataset.index));
+    });
+
+    document.addEventListener('click', (event) => {
+      if (!event.target.closest('.search-wrap')) closeSuggestions();
+    });
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const name = input.value.trim();
+      if (name.length < 2) {
+        errorBox.textContent = '请输入完整企业名称';
+        errorBox.classList.add('show');
+        return;
+      }
+      query(name);
+    });
+
+    const companyCard = document.getElementById('companyCard');
+    const openCompanyPage = (event) => {
+      if (event.target.closest('a, button')) return;
+      if (companyCard.dataset.href) window.open(companyCard.dataset.href, '_blank', 'noopener,noreferrer');
+    };
+    companyCard.addEventListener('click', openCompanyPage);
+    companyCard.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openCompanyPage(event);
+      }
+    });
+  </script>
+</body>
+</html>
