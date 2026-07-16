@@ -32,6 +32,21 @@ npm start
 
 打开 `http://127.0.0.1:4173`。
 
+## 项目结构
+
+```text
+server.js                 HTTP 路由与静态文件服务
+lib/tyc-client.js         天眼查 CLI 调用与容错
+lib/company-service.js    企业搜索及尽调数据查询编排
+lib/risk-engine.js        当前 v3 风险等级规则与解释生成
+public/index.html         页面结构
+public/styles.css         页面样式
+public/app.js             搜索、渲染与交互逻辑
+data/                     人工补录的风险覆盖数据
+```
+
+主分支只保留当前生效的 v3 风险等级实现；旧版百分制逻辑由 Git 历史保存，不再混入运行代码。
+
 ## Docker 部署
 
 ```bash

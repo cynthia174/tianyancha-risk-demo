@@ -5,7 +5,7 @@
   "description": "企业经营与合作风险等级 Demo",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js"
+    "check": "node --check server.js && node --check lib/tyc-client.js && node --check lib/risk-engine.js && node --check lib/company-service.js && node --check public/app.js"
   },
   "engines": {
     "node": ">=18"
