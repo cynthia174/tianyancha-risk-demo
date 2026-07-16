@@ -57,7 +57,7 @@ const ruleIds = [
 const csvHeaders = [
   '序号','企业名称','统一社会信用代码','法定代表人','经营状态','成立日期','注册资本','行业','注册地址',
   '社保情况','法人及疑似关系情况','疑似相同电话数量','疑似相同邮箱数量', ...ruleIds.map(([, title]) => title),
-  '总体风险等级','结论','风险触发项','已检查无问题项','天眼查链接','评估时间'
+  '总体风险等级','风险等级主要原因','结论','风险触发项','已检查无问题项','天眼查链接','评估时间'
 ];
 
 function csvCell(value) {
@@ -96,6 +96,7 @@ async function score(candidate) {
       疑似相同邮箱数量: countFromEvidence('疑似相同邮箱'),
       levels: Object.fromEntries(ruleIds.map(([id]) => [id, byId[id]?.levelLabel ?? ''])),
       总体风险等级: data.riskLabel,
+      风险等级主要原因: data.riskExplanation,
       结论: data.verdict,
       风险触发项: (data.triggers || []).join('；'),
       已检查无问题项: (data.clearChecks || []).join('；'),
@@ -139,7 +140,7 @@ async function main() {
       index + 1,row.企业名称,row.统一社会信用代码,row.法定代表人,row.经营状态,row.成立日期,row.注册资本,row.行业,row.注册地址,
       row.社保情况,row.法人及疑似关系情况,row.疑似相同电话数量,row.疑似相同邮箱数量,
       ...ruleIds.map(([id]) => row.levels[id]),
-      row.总体风险等级,row.结论,row.风险触发项,row.已检查无问题项,row.天眼查链接,row.评估时间
+      row.总体风险等级,row.风险等级主要原因,row.结论,row.风险触发项,row.已检查无问题项,row.天眼查链接,row.评估时间
     ];
     lines.push(values.map(csvCell).join(','));
   });

@@ -24,7 +24,7 @@ function runTyc(args) {
     execFile(command, commandArgs, {
       cwd: __dirname,
       windowsHide: true,
-      timeout: 30000,
+      timeout: 60000,
       maxBuffer: 6 * 1024 * 1024,
       encoding: 'utf8'
     }, (error, stdout, stderr) => {
@@ -728,20 +728,65 @@ function classifyCompanyRisk(registration, data) {
   const legalTotal = Number(data.personCompanies?.total ?? legalCompanies.length) || 0;
   const closedLegalCompanies = legalCompanies.filter((item) => /注销|吊销|撤销|清算/.test(item.regStatus || item.status || ''));
   const personHighRisks = (data.personRisk?.riskGroups || []).flatMap((group) => group.risks || []).filter((item) => item.riskLevel === '高风险');
+  const relatedRiskPriority = (type) => /失信/.test(type) ? 100 : /限制消费|限高/.test(type) ? 90 : /被执行/.test(type) ? 80 : /终本/.test(type) ? 70 : /破产|清算|注销|吊销/.test(type) ? 60 : 50;
+  const highRiskCompanyMap = new Map();
+  personHighRisks.forEach((risk) => {
+    (risk.examples || []).forEach((example) => {
+      if (!example.companyName || example.companyName === base.name) return;
+      const key = String(example.companyId || example.companyName);
+      const current = highRiskCompanyMap.get(key) || {
+        name: example.companyName,
+        companyId: example.companyId,
+        riskTypes: new Set(),
+        riskCount: 0,
+        riskPriority: 0
+      };
+      current.riskTypes.add(risk.riskType || example.riskDesc || '高风险信号');
+      current.riskCount += Number(example.riskCount || 0);
+      current.riskPriority = Math.max(current.riskPriority, relatedRiskPriority(risk.riskType || example.riskDesc || ''));
+      highRiskCompanyMap.set(key, current);
+    });
+  });
+  const highRiskRelatedCompanies = [...highRiskCompanyMap.values()].map((item) => ({
+    name: item.name,
+    companyId: item.companyId,
+    riskTypes: [...item.riskTypes],
+    riskCount: item.riskCount,
+    riskPriority: item.riskPriority
+  })).sort((a, b) => b.riskPriority - a.riskPriority || b.riskCount - a.riskCount);
   const denseClosedNetwork = legalTotal > 30 && closedLegalCompanies.length >= 20;
-  const legalLevel = denseClosedNetwork ? 'high' : personHighRisks.length ? 'medium' : 'low';
-  const relatedCompanies = legalCompanies.slice(0, 30).map((item) => ({
-    name: item.name || '关联企业',
-    status: item.regStatus || item.status || '状态未披露',
-    role: item.type || item.position || '关联角色未披露',
-    url: item.id || item.companyId
-      ? `https://www.tianyancha.com/company/${item.id || item.companyId}`
-      : `https://www.tianyancha.com/search?key=${encodeURIComponent(item.name || '')}`
-  }));
+  const legalLevel = denseClosedNetwork ? 'high' : highRiskRelatedCompanies.length ? 'medium' : 'low';
+  const relatedCompanies = legalCompanies.slice(0, 30).map((item) => {
+    const matchedRisk = highRiskRelatedCompanies.find((riskCompany) => riskCompany.name === item.name || (riskCompany.companyId && String(riskCompany.companyId) === String(item.id || item.companyId)));
+    return {
+      name: item.name || '关联企业',
+      status: item.regStatus || item.status || '状态未披露',
+      role: item.type || item.position || '关联角色未披露',
+      riskLevel: matchedRisk ? 'high' : 'normal',
+      riskSummary: matchedRisk ? `${matchedRisk.riskTypes.join('、')} · ${matchedRisk.riskCount} 条` : '',
+      riskPriority: matchedRisk?.riskPriority || 0,
+      url: item.id || item.companyId
+        ? `https://www.tianyancha.com/company/${item.id || item.companyId}`
+        : `https://www.tianyancha.com/search?key=${encodeURIComponent(item.name || '')}`
+    };
+  });
+  highRiskRelatedCompanies.forEach((item) => {
+    if (relatedCompanies.some((company) => company.name === item.name)) return;
+    relatedCompanies.unshift({
+      name: item.name,
+      status: '周边高风险',
+      role: '法人关联企业',
+      riskLevel: 'high',
+      riskSummary: `${item.riskTypes.join('、')} · ${item.riskCount} 条`,
+      riskPriority: item.riskPriority,
+      url: item.companyId ? `https://www.tianyancha.com/company/${item.companyId}` : `https://www.tianyancha.com/search?key=${encodeURIComponent(item.name)}`
+    });
+  });
+  relatedCompanies.sort((a, b) => Number(b.riskLevel === 'high') - Number(a.riskLevel === 'high') || b.riskPriority - a.riskPriority);
   const legalReason = denseClosedNetwork
     ? `法人关联 ${legalTotal} 家企业且至少 ${closedLegalCompanies.length} 家已注销、吊销、撤销或清算，达到高风险红线。`
-    : personHighRisks.length
-      ? `法人关联企业中发现 ${personHighRisks.length} 类高风险指数信号，整体判定为中风险；可点击下方企业名称逐家核验。`
+    : highRiskRelatedCompanies.length
+      ? `法人关联企业中有 ${highRiskRelatedCompanies.length} 家出现周边高风险信号，整体判定为中风险；高风险企业已红色标出，可点击逐家核验。`
       : `法人关联 ${legalTotal} 家企业，其中 ${closedLegalCompanies.length} 家已注销、吊销、撤销或清算，未触发本规则风险阈值。`;
 
   const debtorCount = Math.max(countOf(data.debtor), overviewCount('被执行人'));
@@ -786,7 +831,7 @@ function classifyCompanyRisk(registration, data) {
   const rules = [
     makeRule('suspicious-relations', '电话、邮箱等疑似关系', relationLevel, suspiciousCount ? `${suspiciousCount} 条疑似关系` : '未录入疑似关系', relationReason,
       relationTypes.map((item) => ({ label: item.type || '疑似关系', value: `${item.count ?? relationTotal} 条 · ${item.note || suspiciousRelations.source || '人工复核数据'}` })), { priority: 100 }),
-    makeRule('legal-network', '法人关联企业风险', legalLevel, `关联 ${legalTotal} 家 · 注销等 ${closedLegalCompanies.length} 家 · 周边高风险 ${personHighRisks.length} 类`, legalReason,
+    makeRule('legal-network', '法人关联企业风险', legalLevel, `关联 ${legalTotal} 家 · 注销等 ${closedLegalCompanies.length} 家 · 高风险关联公司 ${highRiskRelatedCompanies.length} 家`, legalReason,
       [
         ...legalCompanies.slice(0, 8).map((item) => ({ label: item.regStatus || item.status || '状态未披露', value: `${item.name} · ${item.type || item.position || '关联角色未披露'}` })),
         ...personHighRisks.slice(0, 5).map((item) => ({ label: item.riskType || '法人周边高风险', value: `${item.count || 0} 条 · ${item.riskLevel}` }))
@@ -808,8 +853,8 @@ function classifyCompanyRisk(registration, data) {
       ], { priority: 75 }),
     makeRule('address', '注册地址与办公场所', addressLevel, address, addressReason,
       [{ label: '当前登记地址', value: address }, ...addressChanges.slice(0, 5).map((item) => ({ label: item.changeTime || '地址变更', value: `${item.contentBefore || ''} → ${item.contentAfter || ''}` }))], { priority: 70 }),
-    makeRule('history', '历史名称', nameChangeCount >= 5 ? 'high' : 'low', `${nameChangeCount} 个历史名称/改名信号`,
-      nameChangeCount >= 5 ? '历史名称达到 5 个，主体连续性核验成本高，判定为高风险。' : '历史名称未达到 5 个高风险阈值。',
+    makeRule('history', '历史名称', nameChangeCount > 0 ? 'notice' : 'low', `${nameChangeCount} 个历史名称/改名信号`,
+      nameChangeCount > 0 ? '历史名称仅作为主体连续性核验提醒，不触发高、中风险，也不改变总体风险等级。' : '未发现历史名称；本项不触发风险判定。',
       [...historyNames.slice(0, 8).map((item, index) => ({ label: `曾用名 ${index + 1}`, value: item })), ...nameChangeRows.slice(0, 5).map((item) => ({ label: item.changeTime || '名称变更', value: `${item.contentBefore || ''} → ${item.contentAfter || ''}` }))], { priority: 65 }),
     makeRule('age', '主体年限', ageLevel, age === null ? '成立时间未披露' : `成立 ${age.toFixed(1)} 年`,
       age !== null && age < 1 ? '成立不足 1 年，经营和履约记录尚短，判定为中风险。' : age === null ? '成立日期未披露，仅提示人工核验，不直接触发风险。' : '成立已满 1 年，本项不触发风险判定。',
@@ -843,7 +888,43 @@ function classifyCompanyRisk(registration, data) {
   if (isAvailable(data.debtor) && debtorCount < 3) clearChecks.push('被执行不少于 3 条');
   if (isAvailable(data.equityFreeze) && equityFreezeCount === 0) clearChecks.push('股权冻结');
   if (isAvailable(data.personCompanies) && !denseClosedNetwork) clearChecks.push('法人关联超过 30 家且至少 20 家注销等');
-  if ((isAvailable(data.historyNames) || isAvailable(data.changes)) && nameChangeCount < 5) clearChecks.push('历史名称达到 5 个');
+
+  const describeTrigger = (item) => {
+    if (item.id === 'suspicious-relations') return `发现电话、邮箱等疑似关系 ${suspiciousCount} 条，${suspiciousCount >= 20 ? '已超过 20 条高风险阈值，存在联系方式集中复用、挂靠或主体网络异常的可能' : '尚未达到高风险阈值，但仍需核实联系方式复用原因'}`;
+    if (item.id === 'legal-network') {
+      if (denseClosedNetwork) return `法人关联超过 30 家企业，且至少 ${closedLegalCompanies.length} 家已注销、吊销、撤销或清算，形成异常企业网络`;
+      const names = highRiskRelatedCompanies.slice(0, 3).map((company) => company.name).join('、');
+      return `法定代表人关联的${names || `${highRiskRelatedCompanies.length} 家企业`}存在失信、限高、被执行或其它周边高风险信号`;
+    }
+    if (item.id === 'execution') return `发现被执行 ${debtorCount} 条、失信 ${dishonestCount} 条、限制高消费 ${highConsumptionCount} 条、股权冻结 ${equityFreezeCount} 条，命中司法执行红线`;
+    if (item.id === 'continuity') return `发现严重违法 ${seriousCount} 条、破产重整 ${bankruptcyCount} 条、注销备案 ${cancellationCount} 条，当前经营状态为${base.regStatus || '未披露'}`;
+    if (item.id === 'address') return '注册地址明确出现集中注册、虚拟地址、工位、挂靠或托管特征';
+    if (item.id === 'age') return `公司成立仅 ${age?.toFixed(1) ?? '不足 1'} 年，经营和履约记录尚短`;
+    return item.reason.replace(/[。；]+$/g, '');
+  };
+  const decisiveRules = rules.filter((item) => item.level === 'high' || item.level === 'medium');
+  const explanationParts = [`该公司风险等级为${overallLabel}。`];
+  if (decisiveRules.length) {
+    explanationParts.push(`最主要原因是${describeTrigger(decisiveRules[0])}。`);
+    decisiveRules.slice(1, 3).forEach((item) => explanationParts.push(`此外，${describeTrigger(item)}。`));
+  } else {
+    explanationParts.push('当前可查询项目未命中高风险或中风险阈值。');
+  }
+  const operatingSignals = [];
+  if (age !== null && age >= 1) operatingSignals.push(`公司成立已有 ${age.toFixed(1)} 年`);
+  if (staffKnown && staff > 0) operatingSignals.push(`参保人数为 ${staff} 人`);
+  if (historyNames.length > 0 || nameChangeCount > 0) {
+    const historySignal = `发现 ${nameChangeCount} 个历史名称或改名信号`;
+    explanationParts.push(operatingSignals.length
+      ? `虽然${historySignal}，但该项仅作为主体连续性核验提醒，不直接提高风险等级；同时，${operatingSignals.join('，')}，这些经营信号可作为稳定性参考。`
+      : `${historySignal}，但该项仅作为主体连续性核验提醒，不直接提高风险等级。`);
+  } else if (operatingSignals.length) {
+    explanationParts.push(`${operatingSignals.join('，')}，上述经营信号可作为稳定性参考。`);
+  }
+  if (staffKnown && staff === 0) explanationParts.push('参保人数为 0，仅作为经营真实性核验提示，不单独提高风险等级。');
+  if (smallOfficeAddress && !highAddress) explanationParts.push('注册地址呈现住宅、公寓、房号或小办公室特征，仅提示核验实际办公条件，不单独提高风险等级。');
+  if (overallLevel === 'high') explanationParts.push('正常的成立年限、参保人数等经营信号不能抵消已经命中的高风险红线。');
+  const riskExplanation = explanationParts.join('');
 
   return {
     company: {
@@ -863,6 +944,7 @@ function classifyCompanyRisk(registration, data) {
       : overallLevel === 'medium'
         ? '未命中高风险红线，但存在中风险信号，建议补充材料后再决定合作额度。'
         : '当前可查询项目未命中高、中风险阈值，可按常规流程继续尽调。',
+    riskExplanation,
     triggers: triggerRules,
     clearChecks,
     rules,
@@ -874,7 +956,7 @@ function classifyCompanyRisk(registration, data) {
     meta: {
       mode: 'live',
       queriedAt: new Date().toISOString(),
-      ruleVersion: '3.0-levels',
+      ruleVersion: '3.0.1-levels',
       note: '本结果用于合作准入初筛，不构成征信、法律或投资结论；“未发现”仅表示当前接口和已补录数据未返回相关记录。'
     }
   };

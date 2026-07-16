@@ -1,6 +1,6 @@
 {
   "name": "tyc-risk-demo",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "private": true,
   "description": "企业经营与合作风险等级 Demo",
   "scripts": {

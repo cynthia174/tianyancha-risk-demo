@@ -89,6 +89,12 @@
     .risk-badge { min-width:190px; padding:26px 24px; border:1px solid rgba(255,255,255,.25); border-radius:28px; background:rgba(255,255,255,.1); box-shadow:inset 0 1px rgba(255,255,255,.15); }
     .risk-badge b { display:block; font-size:42px; line-height:1.05; letter-spacing:.02em; }
     .risk-badge span { display:block; margin-top:10px; font-size:12px; opacity:.78; }
+    .risk-explanation { margin-top:16px; padding:20px 23px; border:1px solid var(--line); border-left:4px solid var(--green); border-radius:18px; background:rgba(255,255,255,.7); box-shadow:0 8px 24px rgba(31,48,44,.05); }
+    .risk-explanation.high { border-left-color:var(--red); background:#fff8f7; }
+    .risk-explanation.medium { border-left-color:var(--amber); background:#fffdf5; }
+    .risk-explanation.low { border-left-color:var(--green); }
+    .risk-explanation b { display:block; margin-bottom:7px; font-size:14px; }
+    .risk-explanation p { margin:0; color:#52605c; font-size:13px; line-height:1.85; }
     .section-head { display:flex; justify-content:space-between; align-items:end; padding:42px 2px 18px; }
     .section-head h3 { margin:0; font-size:23px; letter-spacing:-.02em; }
     .section-head p { margin:5px 0 0; color:var(--muted); font-size:13px; }
@@ -118,6 +124,8 @@
     .related-links { display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; }
     .related-link { color:#256d5d; background:#edf7f4; border:1px solid #c8e5dc; border-radius:999px; padding:5px 9px; font-size:11px; text-decoration:none; }
     .related-link:hover { background:#dff2ec; }
+    .related-link.high-risk-related { color:#a92d25; background:#fff0ee; border-color:#e8a39c; font-weight:800; }
+    .related-link.high-risk-related:hover { background:#ffe2de; }
     .clear-checks { margin-top:16px; color:#71807b; font-size:11px; line-height:1.7; padding:0 4px; }
     .evidence { position:relative; display:inline-block; margin-top:8px; }
     .evidence-btn { appearance:none; border:0; padding:0; color:var(--green); background:none; font-size:12px; cursor:help; font-weight:700; border-bottom:1px dashed #77aa9e; }
@@ -212,6 +220,10 @@
           <div class="risk-badge"><b id="riskLabel">待核验</b><span>企业合作风险等级</span></div>
         </div>
       </div>
+      <div class="risk-explanation low" id="riskExplanationCard">
+        <b>风险结论说明</b>
+        <p id="riskExplanation"></p>
+      </div>
 
       <div class="section-head">
         <div><h3>逐项风险判定</h3><p>按风险等级和业务重要性动态排序；点击“查看详细依据”可展开历史记录</p></div>
@@ -226,7 +238,7 @@
 
   <footer class="shell">
     <span>本风险等级仅用于商业合作初筛，不构成征信、法律或投资结论。</span>
-    <span>规则版本 v3.0 · 高/中/低风险制 · 可解释证据 · 数据查询时间以结果为准</span>
+    <span>规则版本 v3.0.1 · 高/中/低风险制 · 结论说明 · 数据查询时间以结果为准</span>
   </footer>
 
   <script>
@@ -263,6 +275,8 @@
       const riskPanel = document.getElementById('riskPanel');
       riskPanel.className = `risk-panel ${escapeHtml(data.riskLevel)}`;
       document.getElementById('riskLabel').textContent = data.riskLabel;
+      document.getElementById('riskExplanationCard').className = `risk-explanation ${escapeHtml(data.riskLevel)}`;
+      document.getElementById('riskExplanation').textContent = data.riskExplanation;
 
       const flags = document.getElementById('flags');
       flags.innerHTML = data.triggers.length
@@ -274,7 +288,7 @@
           ? item.evidence.map((entry) => `<div class="evidence-item"><b>${escapeHtml(entry.label)}</b>${entry.href ? `<a href="${escapeHtml(entry.href)}" target="_blank" rel="noreferrer">${escapeHtml(entry.value)}</a>` : escapeHtml(entry.value)}</div>`).join('')
           : '<div class="empty-evidence">当前接口没有返回可展示的历史记录。</div>';
         const related = (item.relatedCompanies || []).length
-          ? `<div class="related-links">${item.relatedCompanies.map((company) => `<a class="related-link" href="${escapeHtml(company.url)}" target="_blank" rel="noreferrer" title="${escapeHtml(`${company.status} · ${company.role}`)}">${escapeHtml(company.name)} ↗</a>`).join('')}</div>`
+          ? `<div class="related-links">${item.relatedCompanies.map((company) => `<a class="related-link ${company.riskLevel === 'high' ? 'high-risk-related' : ''}" href="${escapeHtml(company.url)}" target="_blank" rel="noreferrer" title="${escapeHtml([company.status, company.role, company.riskSummary].filter(Boolean).join(' · '))}">${escapeHtml(company.name)}${company.riskLevel === 'high' ? ' · 高风险' : ''} ↗</a>`).join('')}</div>`
           : '';
         return `<article class="rule ${escapeHtml(item.status)}">
           <div class="rule-title">
